@@ -11,6 +11,21 @@ REPO_BASE="https://raw.githubusercontent.com/tonyyont/peon-ping/main"
 # All available sound packs (add new packs here)
 PACKS="peon peon_fr peon_pl peasant peasant_fr ra2_soviet_engineer sc_battlecruiser sc_kerrigan"
 
+# --- Platform detection ---
+detect_platform() {
+  case "$(uname -s)" in
+    Darwin) echo "mac" ;;
+    Linux)
+      if grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "wsl"
+      else
+        echo "linux"
+      fi ;;
+    *) echo "unknown" ;;
+  esac
+}
+PLATFORM=$(detect_platform)
+
 # --- Detect update vs fresh install ---
 UPDATING=false
 if [ -f "$INSTALL_DIR/peon.sh" ]; then
@@ -27,8 +42,8 @@ else
 fi
 
 # --- Prerequisites ---
-if [ "$(uname)" != "Darwin" ]; then
-  echo "Error: peon-ping requires macOS (uses afplay + AppleScript)"
+if [ "$PLATFORM" != "mac" ] && [ "$PLATFORM" != "wsl" ]; then
+  echo "Error: peon-ping requires macOS or WSL (Windows Subsystem for Linux)"
   exit 1
 fi
 
@@ -37,9 +52,20 @@ if ! command -v python3 &>/dev/null; then
   exit 1
 fi
 
-if ! command -v afplay &>/dev/null; then
-  echo "Error: afplay is required (should be built into macOS)"
-  exit 1
+if [ "$PLATFORM" = "mac" ]; then
+  if ! command -v afplay &>/dev/null; then
+    echo "Error: afplay is required (should be built into macOS)"
+    exit 1
+  fi
+elif [ "$PLATFORM" = "wsl" ]; then
+  if ! command -v powershell.exe &>/dev/null; then
+    echo "Error: powershell.exe is required (should be available in WSL)"
+    exit 1
+  fi
+  if ! command -v wslpath &>/dev/null; then
+    echo "Error: wslpath is required (should be built into WSL)"
+    exit 1
+  fi
 fi
 
 if [ ! -d "$HOME/.claude" ]; then
@@ -84,7 +110,7 @@ else
   for pack in $PACKS; do
     manifest="$INSTALL_DIR/packs/$pack/manifest.json"
     # Extract sound filenames from manifest and download each one
-    /usr/bin/python3 -c "
+    python3 -c "
 import json
 m = json.load(open('$manifest'))
 seen = set()
@@ -162,7 +188,7 @@ fi
 echo ""
 echo "Updating Claude Code hooks in settings.json..."
 
-/usr/bin/python3 -c "
+python3 -c "
 import json, os, sys
 
 settings_path = os.path.expanduser('~/.claude/settings.json')
@@ -221,7 +247,7 @@ fi
 # --- Test sound ---
 echo ""
 echo "Testing sound..."
-ACTIVE_PACK=$(/usr/bin/python3 -c "
+ACTIVE_PACK=$(python3 -c "
 import json, os
 try:
     c = json.load(open(os.path.expanduser('~/.claude/hooks/peon-ping/config.json')))
@@ -232,7 +258,23 @@ except:
 PACK_DIR="$INSTALL_DIR/packs/$ACTIVE_PACK"
 TEST_SOUND=$({ ls "$PACK_DIR/sounds/"*.wav "$PACK_DIR/sounds/"*.mp3 "$PACK_DIR/sounds/"*.ogg 2>/dev/null || true; } | head -1)
 if [ -n "$TEST_SOUND" ]; then
-  afplay -v 0.3 "$TEST_SOUND"
+  if [ "$PLATFORM" = "mac" ]; then
+    afplay -v 0.3 "$TEST_SOUND"
+  elif [ "$PLATFORM" = "wsl" ]; then
+    wpath=$(wslpath -w "$TEST_SOUND")
+    # Convert backslashes to forward slashes for file:/// URI
+    wpath="${wpath//\\//}"
+    powershell.exe -NoProfile -NonInteractive -Command "
+      Add-Type -AssemblyName PresentationCore
+      \$p = New-Object System.Windows.Media.MediaPlayer
+      \$p.Open([Uri]::new('file:///$wpath'))
+      \$p.Volume = 0.3
+      Start-Sleep -Milliseconds 200
+      \$p.Play()
+      Start-Sleep -Seconds 3
+      \$p.Close()
+    " 2>/dev/null
+  fi
   echo "Sound working!"
 else
   echo "Warning: No sound files found. Sounds may not play."

@@ -3,9 +3,133 @@
 # Replaces notify.sh — handles sounds, tab titles, and notifications
 set -uo pipefail
 
+# --- Platform detection ---
+detect_platform() {
+  case "$(uname -s)" in
+    Darwin) echo "mac" ;;
+    Linux)
+      if grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "wsl"
+      else
+        echo "linux"
+      fi ;;
+    *) echo "unknown" ;;
+  esac
+}
+PLATFORM=$(detect_platform)
+
 PEON_DIR="${CLAUDE_PEON_DIR:-$HOME/.claude/hooks/peon-ping}"
 CONFIG="$PEON_DIR/config.json"
 STATE="$PEON_DIR/.state.json"
+
+# --- Platform-aware audio playback ---
+play_sound() {
+  local file="$1" vol="$2"
+  case "$PLATFORM" in
+    mac)
+      nohup afplay -v "$vol" "$file" >/dev/null 2>&1 &
+      ;;
+    wsl)
+      local wpath
+      wpath=$(wslpath -w "$file")
+      # Convert backslashes to forward slashes for file:/// URI
+      wpath="${wpath//\\//}"
+      powershell.exe -NoProfile -NonInteractive -Command "
+        Add-Type -AssemblyName PresentationCore
+        \$p = New-Object System.Windows.Media.MediaPlayer
+        \$p.Open([Uri]::new('file:///$wpath'))
+        \$p.Volume = $vol
+        Start-Sleep -Milliseconds 200
+        \$p.Play()
+        Start-Sleep -Seconds 3
+        \$p.Close()
+      " &>/dev/null &
+      ;;
+  esac
+}
+
+# --- Platform-aware notification ---
+# Args: msg, title, color (red/blue/yellow)
+send_notification() {
+  local msg="$1" title="$2" color="${3:-red}"
+  case "$PLATFORM" in
+    mac)
+      nohup osascript - "$msg" "$title" >/dev/null 2>&1 <<'APPLESCRIPT' &
+on run argv
+  display notification (item 1 of argv) with title (item 2 of argv)
+end run
+APPLESCRIPT
+      ;;
+    wsl)
+      # Map color name to RGB
+      local rgb_r=180 rgb_g=0 rgb_b=0
+      case "$color" in
+        blue)   rgb_r=30  rgb_g=80  rgb_b=180 ;;
+        yellow) rgb_r=200 rgb_g=160 rgb_b=0   ;;
+        red)    rgb_r=180 rgb_g=0   rgb_b=0   ;;
+      esac
+      (
+        # Claim a popup slot for vertical stacking
+        slot_dir="/tmp/peon-ping-popups"
+        mkdir -p "$slot_dir"
+        slot=0
+        while ! mkdir "$slot_dir/slot-$slot" 2>/dev/null; do
+          slot=$((slot + 1))
+        done
+        y_offset=$((40 + slot * 90))
+        powershell.exe -NoProfile -NonInteractive -Command "
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          foreach (\$screen in [System.Windows.Forms.Screen]::AllScreens) {
+            \$form = New-Object System.Windows.Forms.Form
+            \$form.FormBorderStyle = 'None'
+            \$form.BackColor = [System.Drawing.Color]::FromArgb($rgb_r, $rgb_g, $rgb_b)
+            \$form.Size = New-Object System.Drawing.Size(500, 80)
+            \$form.TopMost = \$true
+            \$form.ShowInTaskbar = \$false
+            \$form.StartPosition = 'Manual'
+            \$form.Location = New-Object System.Drawing.Point(
+              (\$screen.WorkingArea.X + (\$screen.WorkingArea.Width - 500) / 2),
+              (\$screen.WorkingArea.Y + $y_offset)
+            )
+            \$label = New-Object System.Windows.Forms.Label
+            \$label.Text = '$msg'
+            \$label.ForeColor = [System.Drawing.Color]::White
+            \$label.Font = New-Object System.Drawing.Font('Segoe UI', 16, [System.Drawing.FontStyle]::Bold)
+            \$label.TextAlign = 'MiddleCenter'
+            \$label.Dock = 'Fill'
+            \$form.Controls.Add(\$label)
+            \$form.Show()
+          }
+          Start-Sleep -Seconds 4
+          [System.Windows.Forms.Application]::Exit()
+        " &>/dev/null
+        rm -rf "$slot_dir/slot-$slot"
+      ) &
+      ;;
+  esac
+}
+
+# --- Platform-aware terminal focus check ---
+terminal_is_focused() {
+  case "$PLATFORM" in
+    mac)
+      local frontmost
+      frontmost=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
+      case "$frontmost" in
+        Terminal|iTerm2|Warp|Alacritty|kitty|WezTerm|Ghostty) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    wsl)
+      # Checking Windows focus from WSL adds too much latency; always notify
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 
 # --- CLI subcommands (must come before INPUT=$(cat) which blocks on stdin) ---
 PAUSED_FILE="$PEON_DIR/.paused"
@@ -20,7 +144,7 @@ case "${1:-}" in
     [ -f "$PAUSED_FILE" ] && echo "peon-ping: paused" || echo "peon-ping: active"
     exit 0 ;;
   --packs)
-    /usr/bin/python3 -c "
+    python3 -c "
 import json, os, glob
 config_path = '$CONFIG'
 try:
@@ -40,7 +164,7 @@ for m in sorted(glob.glob(os.path.join(packs_dir, '*/manifest.json'))):
     PACK_ARG="${2:-}"
     if [ -z "$PACK_ARG" ]; then
       # No argument — cycle to next pack alphabetically
-      /usr/bin/python3 -c "
+      python3 -c "
 import json, os, glob
 config_path = '$CONFIG'
 try:
@@ -70,7 +194,7 @@ print(f'peon-ping: switched to {next_pack} ({display})')
 "
     else
       # Argument given — set specific pack
-      /usr/bin/python3 -c "
+      python3 -c "
 import json, os, glob, sys
 config_path = '$CONFIG'
 pack_arg = '$PACK_ARG'
@@ -117,11 +241,11 @@ esac
 
 INPUT=$(cat)
 
-# Debug log (comment out for quiet operation)
+# Debug log (uncomment to troubleshoot)
 # echo "$(date): peon hook — $INPUT" >> /tmp/peon-ping-debug.log
 
 # --- Load config (shlex.quote prevents shell injection) ---
-eval "$(/usr/bin/python3 -c "
+eval "$(python3 -c "
 import json, shlex
 try:
     c = json.load(open('$CONFIG'))
@@ -143,7 +267,7 @@ PAUSED=false
 [ -f "$PEON_DIR/.paused" ] && PAUSED=true
 
 # --- Parse event fields (shlex.quote prevents shell injection) ---
-eval "$(/usr/bin/python3 -c "
+eval "$(python3 -c "
 import sys, json, shlex
 d = json.load(sys.stdin)
 print('EVENT=' + shlex.quote(d.get('hook_event_name', '')))
@@ -157,7 +281,7 @@ print('PERM_MODE=' + shlex.quote(d.get('permission_mode', '')))
 # Only truly autonomous modes are agents; interactive modes (default, acceptEdits, plan) are not.
 # We track agent sessions by session_id because Notification events lack permission_mode.
 AGENT_MODES="delegate"
-IS_AGENT=$(/usr/bin/python3 -c "
+IS_AGENT=$(python3 -c "
 import json, os
 state_file = '$STATE'
 session_id = '$SESSION_ID'
@@ -229,7 +353,7 @@ fi
 
 # --- Check annoyed state (rapid prompts) ---
 check_annoyed() {
-  /usr/bin/python3 -c "
+  python3 -c "
 import json, time, sys, os
 
 state_file = '$STATE'
@@ -260,7 +384,7 @@ else:
 # --- Pick random sound from category, avoiding immediate repeats ---
 pick_sound() {
   local category="$1"
-  /usr/bin/python3 -c "
+  python3 -c "
 import json, random, sys, os
 
 pack_dir = '$PEON_DIR/packs/$ACTIVE_PACK'
@@ -321,6 +445,9 @@ case "$EVENT" in
     CATEGORY="complete"
     STATUS="done"
     MARKER="● "
+    NOTIFY=1
+    NOTIFY_COLOR="blue"
+    MSG="$PROJECT  —  Task complete"
     ;;
   Notification)
     if [ "$NTYPE" = "permission_prompt" ]; then
@@ -328,13 +455,15 @@ case "$EVENT" in
       STATUS="needs approval"
       MARKER="● "
       NOTIFY=1
-      MSG="$PROJECT — A tool is waiting for your permission"
+      NOTIFY_COLOR="red"
+      MSG="$PROJECT  —  Permission needed"
     elif [ "$NTYPE" = "idle_prompt" ]; then
       # No sound — Stop already played the completion sound.
       STATUS="done"
       MARKER="● "
       NOTIFY=1
-      MSG="$PROJECT — Ready for your next instruction"
+      NOTIFY_COLOR="yellow"
+      MSG="$PROJECT  —  Waiting for input"
     else
       exit 0
     fi
@@ -362,23 +491,13 @@ fi
 if [ -n "$CATEGORY" ] && [ "$PAUSED" != "true" ]; then
   SOUND_FILE=$(pick_sound "$CATEGORY")
   if [ -n "$SOUND_FILE" ] && [ -f "$SOUND_FILE" ]; then
-    nohup afplay -v "$VOLUME" "$SOUND_FILE" >/dev/null 2>&1 &
+    play_sound "$SOUND_FILE" "$VOLUME"
   fi
 fi
 
-# --- Smart notification: only when terminal is NOT frontmost ---
+# --- Attention notification ---
 if [ -n "$NOTIFY" ] && [ "$PAUSED" != "true" ]; then
-  FRONTMOST=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
-  case "$FRONTMOST" in
-    Terminal|iTerm2|Warp|Alacritty|kitty|WezTerm|Ghostty) ;; # terminal is focused, skip notification
-    *)
-      nohup osascript - "$MSG" "$TITLE" >/dev/null 2>&1 <<'APPLESCRIPT' &
-on run argv
-  display notification (item 1 of argv) with title (item 2 of argv)
-end run
-APPLESCRIPT
-      ;;
-  esac
+  send_notification "$MSG" "$TITLE" "${NOTIFY_COLOR:-red}"
 fi
 
 wait

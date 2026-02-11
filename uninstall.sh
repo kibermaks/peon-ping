@@ -14,7 +14,7 @@ echo ""
 # --- Remove hook entries from settings.json ---
 if [ -f "$SETTINGS" ]; then
   echo "Removing peon hooks from settings.json..."
-  /usr/bin/python3 -c "
+  python3 -c "
 import json, os
 
 settings_path = '$SETTINGS'
@@ -60,7 +60,7 @@ if [ -f "$NOTIFY_BACKUP" ]; then
   echo
   if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     # Re-register notify.sh for its original events
-    /usr/bin/python3 -c "
+    python3 -c "
 import json
 
 settings_path = '$SETTINGS'
