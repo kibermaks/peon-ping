@@ -7,6 +7,22 @@ PEON_DIR="${CLAUDE_PEON_DIR:-$HOME/.claude/hooks/peon-ping}"
 CONFIG="$PEON_DIR/config.json"
 STATE="$PEON_DIR/.state.json"
 
+# --- CLI subcommands (must come before INPUT=$(cat) which blocks on stdin) ---
+PAUSED_FILE="$PEON_DIR/.paused"
+case "${1:-}" in
+  --pause)   touch "$PAUSED_FILE"; echo "peon-ping: sounds paused"; exit 0 ;;
+  --resume)  rm -f "$PAUSED_FILE"; echo "peon-ping: sounds resumed"; exit 0 ;;
+  --toggle)
+    if [ -f "$PAUSED_FILE" ]; then rm -f "$PAUSED_FILE"; echo "peon-ping: sounds resumed"
+    else touch "$PAUSED_FILE"; echo "peon-ping: sounds paused"; fi
+    exit 0 ;;
+  --status)
+    [ -f "$PAUSED_FILE" ] && echo "peon-ping: paused" || echo "peon-ping: active"
+    exit 0 ;;
+  --help|-h)
+    echo "Usage: peon --pause | --resume | --toggle | --status"; exit 0 ;;
+esac
+
 INPUT=$(cat)
 
 # Debug log (comment out for quiet operation)
@@ -30,6 +46,9 @@ for cat in ['greeting','acknowledge','complete','error','permission','resource_l
 " 2>/dev/null)"
 
 [ "$ENABLED" = "false" ] && exit 0
+
+PAUSED=false
+[ -f "$PEON_DIR/.paused" ] && PAUSED=true
 
 # --- Parse event fields (shlex.quote prevents shell injection) ---
 eval "$(/usr/bin/python3 -c "
@@ -109,6 +128,11 @@ if [ "$EVENT" = "SessionStart" ] && [ -f "$PEON_DIR/.update_available" ]; then
   if [ -n "$NEW_VER" ]; then
     echo "peon-ping update available: ${CUR_VER:-?} → $NEW_VER — run: curl -fsSL https://raw.githubusercontent.com/tonyyont/peon-ping/main/install.sh | bash" >&2
   fi
+fi
+
+# --- Show pause status on SessionStart ---
+if [ "$EVENT" = "SessionStart" ] && [ "$PAUSED" = "true" ]; then
+  echo "peon-ping: sounds paused — run 'peon --resume' or '/peon-ping-toggle' to unpause" >&2
 fi
 
 # --- Check annoyed state (rapid prompts) ---
@@ -243,7 +267,7 @@ if [ -n "$TITLE" ]; then
 fi
 
 # --- Play sound ---
-if [ -n "$CATEGORY" ]; then
+if [ -n "$CATEGORY" ] && [ "$PAUSED" != "true" ]; then
   SOUND_FILE=$(pick_sound "$CATEGORY")
   if [ -n "$SOUND_FILE" ] && [ -f "$SOUND_FILE" ]; then
     nohup afplay -v "$VOLUME" "$SOUND_FILE" >/dev/null 2>&1 &
@@ -251,7 +275,7 @@ if [ -n "$CATEGORY" ]; then
 fi
 
 # --- Smart notification: only when terminal is NOT frontmost ---
-if [ -n "$NOTIFY" ]; then
+if [ -n "$NOTIFY" ] && [ "$PAUSED" != "true" ]; then
   FRONTMOST=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
   case "$FRONTMOST" in
     Terminal|iTerm2|Warp|Alacritty|kitty|WezTerm|Ghostty) ;; # terminal is focused, skip notification

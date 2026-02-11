@@ -29,6 +29,25 @@ One command. Takes 10 seconds. macOS only. Re-run to update (sounds and config p
 
 Plus Terminal tab titles (`● project: done`) and macOS notifications when Terminal isn't focused.
 
+## Quick controls
+
+Need to mute sounds during a meeting or pairing session? Two options:
+
+| Method | Command | When |
+|---|---|---|
+| **Slash command** | `/peon-ping-toggle` | While working in Claude Code |
+| **CLI** | `peon --toggle` | From any terminal tab |
+
+Other CLI commands:
+
+```bash
+peon --pause    # Mute sounds
+peon --resume   # Unmute sounds
+peon --status   # Check if paused or active
+```
+
+Pausing is instant and persists across sessions until you resume. Tab titles remain active when paused.
+
 ## Configuration
 
 Edit `~/.claude/hooks/peon-ping/config.json`:

@@ -103,6 +103,26 @@ fi
 
 chmod +x "$INSTALL_DIR/peon.sh"
 
+# --- Install skill (slash command) ---
+SKILL_DIR="$HOME/.claude/skills/peon-ping-toggle"
+mkdir -p "$SKILL_DIR"
+if [ -n "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/skills/peon-ping-toggle" ]; then
+  cp "$SCRIPT_DIR/skills/peon-ping-toggle/SKILL.md" "$SKILL_DIR/"
+else
+  curl -fsSL "$REPO_BASE/skills/peon-ping-toggle/SKILL.md" -o "$SKILL_DIR/SKILL.md"
+fi
+
+# --- Add shell alias ---
+ALIAS_LINE='alias peon="bash ~/.claude/hooks/peon-ping/peon.sh"'
+for rcfile in "$HOME/.zshrc" "$HOME/.bashrc"; do
+  if [ -f "$rcfile" ] && ! grep -qF 'alias peon=' "$rcfile"; then
+    echo "" >> "$rcfile"
+    echo "# peon-ping quick controls" >> "$rcfile"
+    echo "$ALIAS_LINE" >> "$rcfile"
+    echo "Added peon alias to $(basename "$rcfile")"
+  fi
+done
+
 # --- Verify sounds are installed ---
 echo ""
 for pack in $PACKS; do
@@ -219,5 +239,10 @@ else
   echo ""
   echo "Uninstall: bash $INSTALL_DIR/uninstall.sh"
 fi
+echo ""
+echo "Quick controls:"
+echo "  /peon-ping-toggle  — toggle sounds in Claude Code"
+echo "  peon --toggle      — toggle sounds from any terminal"
+echo "  peon --status      — check if sounds are paused"
 echo ""
 echo "Ready to work!"

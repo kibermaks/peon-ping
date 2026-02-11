@@ -256,3 +256,71 @@ JSON
   log_line=$(tail -1 "$TEST_DIR/afplay.log")
   [[ "$log_line" == *"-v 0.3"* ]]
 }
+
+# ============================================================
+# Pause / mute feature
+# ============================================================
+
+@test "--toggle creates .paused file and prints paused message" {
+  run bash "$PEON_SH" --toggle
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sounds paused"* ]]
+  [ -f "$TEST_DIR/.paused" ]
+}
+
+@test "--toggle removes .paused file when already paused" {
+  touch "$TEST_DIR/.paused"
+  run bash "$PEON_SH" --toggle
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sounds resumed"* ]]
+  [ ! -f "$TEST_DIR/.paused" ]
+}
+
+@test "--pause creates .paused file" {
+  run bash "$PEON_SH" --pause
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sounds paused"* ]]
+  [ -f "$TEST_DIR/.paused" ]
+}
+
+@test "--resume removes .paused file" {
+  touch "$TEST_DIR/.paused"
+  run bash "$PEON_SH" --resume
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sounds resumed"* ]]
+  [ ! -f "$TEST_DIR/.paused" ]
+}
+
+@test "--status reports paused when .paused exists" {
+  touch "$TEST_DIR/.paused"
+  run bash "$PEON_SH" --status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"paused"* ]]
+}
+
+@test "--status reports active when not paused" {
+  rm -f "$TEST_DIR/.paused"
+  run bash "$PEON_SH" --status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"active"* ]]
+}
+
+@test "paused file suppresses sound on SessionStart" {
+  touch "$TEST_DIR/.paused"
+  run_peon '{"hook_event_name":"SessionStart","cwd":"/tmp/myproject","session_id":"s1","permission_mode":"default"}'
+  [ "$PEON_EXIT" -eq 0 ]
+  ! afplay_was_called
+}
+
+@test "paused SessionStart shows stderr status line" {
+  touch "$TEST_DIR/.paused"
+  run_peon '{"hook_event_name":"SessionStart","cwd":"/tmp/myproject","session_id":"s1","permission_mode":"default"}'
+  [[ "$PEON_STDERR" == *"sounds paused"* ]]
+}
+
+@test "paused file suppresses notification on permission_prompt" {
+  touch "$TEST_DIR/.paused"
+  run_peon '{"hook_event_name":"Notification","notification_type":"permission_prompt","cwd":"/tmp/myproject","session_id":"s1","permission_mode":"default"}'
+  [ "$PEON_EXIT" -eq 0 ]
+  ! afplay_was_called
+}
