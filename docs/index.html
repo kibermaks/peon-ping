@@ -1006,6 +1006,96 @@ html { scrollbar-width: thin; scrollbar-color: var(--wc3-card-border) var(--wc3-
           </div>
         </div>
       </div>
+
+      <!-- Pack 3: StarCraft Battlecruiser -->
+      <div class="carousel-slide" data-pack="sc_battlecruiser">
+        <div class="pack-card-full">
+          <div class="pack-header">
+            <div class="pack-badge">New</div>
+            <div class="pack-name">Battlecruiser</div>
+            <div class="pack-game">StarCraft</div>
+            <code class="pack-id">sc_battlecruiser</code>
+            <div class="pack-credit">Added by <a href="https://github.com/tonyyont">@tonyyont</a></div>
+          </div>
+          <div class="pack-sounds">
+            <button class="pack-sound-btn" data-src="audio/BattlecruiserOperational.mp3" aria-label="Play: Battlecruiser operational">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Battlecruiser operational"</span>
+              <span class="pack-sound-cat">greeting</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/ShieldsUp.mp3" aria-label="Play: Shields up">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Shields up"</span>
+              <span class="pack-sound-cat">greeting</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/MakeItHappen.mp3" aria-label="Play: Make it happen">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Make it happen"</span>
+              <span class="pack-sound-cat">acknowledge</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/Engage.mp3" aria-label="Play: Engage">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Engage"</span>
+              <span class="pack-sound-cat">acknowledge</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/HailingFrequenciesOpen.mp3" aria-label="Play: Hailing frequencies open">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Hailing frequencies open"</span>
+              <span class="pack-sound-cat">complete</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/ReallyHaveToGo.mp3" aria-label="Play: I really have to go">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"I really have to go"</span>
+              <span class="pack-sound-cat">annoyed</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pack 4: Sarah Kerrigan -->
+      <div class="carousel-slide" data-pack="sc_kerrigan">
+        <div class="pack-card-full">
+          <div class="pack-header">
+            <div class="pack-badge">New</div>
+            <div class="pack-name">Sarah Kerrigan</div>
+            <div class="pack-game">StarCraft</div>
+            <code class="pack-id">sc_kerrigan</code>
+            <div class="pack-credit">Added by <a href="https://github.com/tonyyont">@tonyyont</a></div>
+          </div>
+          <div class="pack-sounds">
+            <button class="pack-sound-btn" data-src="audio/KerriganReporting.mp3" aria-label="Play: Lieutenant Kerrigan reporting">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Lieutenant Kerrigan reporting"</span>
+              <span class="pack-sound-cat">greeting</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/IGotcha.mp3" aria-label="Play: I gotcha">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"I gotcha"</span>
+              <span class="pack-sound-cat">acknowledge</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/BeAPleasure.mp3" aria-label="Play: It'd be a pleasure">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"It'd be a pleasure"</span>
+              <span class="pack-sound-cat">acknowledge</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/WhatNow.mp3" aria-label="Play: What now?">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"What now?"</span>
+              <span class="pack-sound-cat">permission</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/EasilyAmused.mp3" aria-label="Play: Easily amused, huh?">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"Easily amused, huh?"</span>
+              <span class="pack-sound-cat">annoyed</span>
+            </button>
+            <button class="pack-sound-btn" data-src="audio/GotAJobToDo.mp3" aria-label="Play: I've got a job to do">
+              <span class="pack-sound-icon">&#9654;</span>
+              <span class="pack-sound-quote">"I've got a job to do"</span>
+              <span class="pack-sound-cat">annoyed</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <button class="carousel-arrow carousel-next" aria-label="Next pack">
@@ -1016,11 +1106,13 @@ html { scrollbar-width: thin; scrollbar-color: var(--wc3-card-border) var(--wc3-
   <div class="carousel-dots">
     <button class="carousel-dot active" data-index="0" aria-label="Orc Peon"></button>
     <button class="carousel-dot" data-index="1" aria-label="Soviet Engineer"></button>
+    <button class="carousel-dot" data-index="2" aria-label="Battlecruiser"></button>
+    <button class="carousel-dot" data-index="3" aria-label="Sarah Kerrigan"></button>
   </div>
 
   <div class="contribute-cta">
     <p>Want to add a pack? Drop your sound files in <code>packs/&lt;name&gt;/sounds/</code>, add a manifest, and <a href="https://github.com/tonyyont/peon-ping/pulls">open a PR</a>.</p>
-    <p class="contribute-ideas">Ideas: Human Peasant, Night Elf Wisp, Undead Acolyte, Protoss Probe, SCV, GLaDOS &hellip;</p>
+    <p class="contribute-ideas">Ideas: Human Peasant, Night Elf Wisp, Undead Acolyte, Protoss Probe, SCV, Zeratul, Jim Raynor, GLaDOS &hellip;</p>
   </div>
 </div>
 </section>
@@ -1063,7 +1155,7 @@ html { scrollbar-width: thin; scrollbar-color: var(--wc3-card-border) var(--wc3-
       <div class="feature-icon">&#x1f4e6;</div>
       <div class="feature-text">
         <h3>Pack system</h3>
-        <p>Orc Peon, Soviet Engineer, and more. <a href="#packs">Submit your own.</a></p>
+        <p>Orc Peon, Soviet Engineer, Battlecruiser, Kerrigan, and more. <a href="#packs">Submit your own.</a></p>
       </div>
     </div>
   </div>

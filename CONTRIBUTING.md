@@ -123,6 +123,39 @@ npx remotion render src/index.ts SovietEngineerPreview out/my-pack-preview.mp4
 
 The video shows typed commands in a terminal with your sounds playing at each hook event.
 
+## Automate pack creation
+
+Have a single audio file with all your character's quotes? You can auto-transcribe and split it:
+
+1. Copy `.env.example` to `.env` and add your [Deepgram API key](https://console.deepgram.com) (or use [Whisper](https://github.com/openai/whisper) locally)
+2. Transcribe with word-level timestamps:
+
+```bash
+# Option A: Deepgram (cloud, fast)
+source .env
+curl --http1.1 -X POST \
+  "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&utterances=true&utt_split=0.8" \
+  -H "Authorization: Token $DEEPGRAM_API_KEY" \
+  -H "Content-Type: audio/mpeg" \
+  --data-binary @your_audio.mp3 -o transcription.json
+
+# Option B: Whisper (local, free)
+pip install openai-whisper
+whisper your_audio.mp3 --model base --language en --output_format json --word_timestamps True --output_dir .
+```
+
+3. Use the timestamps from the JSON to cut individual clips with ffmpeg:
+
+```bash
+ffmpeg -i your_audio.mp3 -ss 0.0 -to 1.5 -c copy packs/my_pack/sounds/Quote1.mp3 -y
+ffmpeg -i your_audio.mp3 -ss 2.0 -to 4.8 -c copy packs/my_pack/sounds/Quote2.mp3 -y
+# ... repeat for each quote
+```
+
+4. Map the clips to categories in `manifest.json` and you're done.
+
+This is how the StarCraft Battlecruiser and Kerrigan packs were created — one source audio file, transcribed, split, and mapped in minutes.
+
 ## Pack ideas
 
 We'd love to see these (or anything else):
