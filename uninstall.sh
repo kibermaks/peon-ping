@@ -109,6 +109,13 @@ print('Restored notify.sh hooks for: SessionStart, UserPromptSubmit, Stop, Notif
   fi
 fi
 
+# --- Remove fish completions ---
+FISH_COMPLETIONS="$HOME/.config/fish/completions/peon.fish"
+if [ -f "$FISH_COMPLETIONS" ]; then
+  rm "$FISH_COMPLETIONS"
+  echo "Removed fish completions"
+fi
+
 # --- Remove skill directory ---
 SKILL_DIR="$BASE_DIR/skills/peon-ping-toggle"
 if [ -d "$SKILL_DIR" ]; then
