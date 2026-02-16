@@ -1725,23 +1725,43 @@ if rotation_mode == 'agentskill':
         else:
             active_pack = cfg.get('active_pack', 'peon')
 elif pack_rotation and rotation_mode in ('random', 'round-robin'):
-    # Automatic rotation (existing behavior)
+    # Automatic rotation — detect context resets (new session_id within seconds
+    # of the last event, no Stop in between) and reuse the previous pack.
     session_packs = state.get('session_packs', {})
     if session_id in session_packs and session_packs[session_id] in pack_rotation:
         active_pack = session_packs[session_id]
     else:
-        if rotation_mode == 'round-robin':
-            rotation_index = state.get('rotation_index', 0) % len(pack_rotation)
-            active_pack = pack_rotation[rotation_index]
-            state['rotation_index'] = rotation_index + 1
-        else:
-            active_pack = random.choice(pack_rotation)
+        inherited = False
+        if event == 'SessionStart':
+            last_active = state.get('last_active', {})
+            la_sid = last_active.get('session_id', '')
+            la_ts = last_active.get('timestamp', 0)
+            la_evt = last_active.get('event', '')
+            la_pack = last_active.get('pack', '')
+            # Context reset: recent activity from another session, no Stop/SessionEnd
+            if (la_sid and la_sid != session_id and la_pack in pack_rotation
+                    and la_evt not in ('Stop', 'SessionEnd')
+                    and time.time() - la_ts < 15):
+                active_pack = la_pack
+                inherited = True
+        if not inherited:
+            if rotation_mode == 'round-robin':
+                rotation_index = state.get('rotation_index', 0) % len(pack_rotation)
+                active_pack = pack_rotation[rotation_index]
+                state['rotation_index'] = rotation_index + 1
+            else:
+                active_pack = random.choice(pack_rotation)
         session_packs[session_id] = active_pack
         state['session_packs'] = session_packs
         state_dirty = True
 else:
     # Default: everyone uses active_pack
     active_pack = cfg.get('active_pack', 'peon')
+
+# --- Track last active session for context-reset detection ---
+state['last_active'] = dict(session_id=session_id, pack=active_pack,
+                            timestamp=time.time(), event=event)
+state_dirty = True
 
 # --- Project name ---
 project = cwd.rsplit('/', 1)[-1] if cwd else 'claude'
