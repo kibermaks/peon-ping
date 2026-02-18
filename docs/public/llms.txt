@@ -50,9 +50,11 @@ MCP resources: `peon-ping://catalog`, `peon-ping://pack/{name}`
 ## Hook Events Supported
 
 - session.start — Session or workspace opens
+- session.end — Session closes gracefully
 - task.acknowledge — Agent accepted work, is processing
 - task.complete — Work finished successfully
 - task.error — Something failed
+- task.progress — Long-running task still in progress
 - input.required — Blocked, waiting for user input or approval
 - resource.limit — Rate, token, or quota limit hit
 - user.spam — User sending commands too fast

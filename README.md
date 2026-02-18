@@ -140,7 +140,7 @@ peon relay --daemon       # Start audio relay (for SSH/devcontainer)
 peon relay --stop         # Stop background relay
 ```
 
-Available CESP categories for `peon preview`: `session.start`, `task.acknowledge`, `task.complete`, `task.error`, `input.required`, `resource.limit`, `user.spam`.
+Available CESP categories for `peon preview`: `session.start`, `session.end`, `task.acknowledge`, `task.complete`, `task.error`, `task.progress`, `input.required`, `resource.limit`, `user.spam`.
 
 Tab completion is supported — type `peon packs use <TAB>` to see available pack names.
 
