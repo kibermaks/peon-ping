@@ -957,5 +957,4 @@ powershell -File "$env:USERPROFILE\.claude\hooks\peon-ping\uninstall.ps1" -KeepS
 
 ## 支持项目
 
-[removed_support_line]
 - 社区代币（DYOR / 仅供娱乐）：有人在 Base 上创建了 $PEON 代币 — 我们接收交易手续费，帮助资助开发。[`0xf4ba744229afb64e2571eef89aacec2f524e8ba3`](https://dexscreener.com/base/0xf4bA744229aFB64E2571eef89AaceC2F524e8bA3)
