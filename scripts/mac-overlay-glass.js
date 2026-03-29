@@ -256,23 +256,8 @@ function run(argv) {
   ObjC.registerSubclass({
     name: 'GlassDismissHandler', superclass: 'NSObject',
     methods: { 'handleDismiss': { types: ['void', []], implementation: function() {
-      // iTerm2: raise the specific window containing our session
-      if (sessionTty && bundleId === 'com.googlecode.iterm2') {
-        var task = $.NSTask.alloc.init;
-        task.setLaunchPath($('/usr/bin/osascript'));
-        task.setArguments($(['-l', 'JavaScript', '-e',
-          'var iTerm=Application("iTerm2");var ws=iTerm.windows();var f=0;' +
-          'for(var w=0;w<ws.length&&!f;w++){var ts=ws[w].tabs();' +
-          'for(var t=0;t<ts.length&&!f;t++){var ss=ts[t].sessions();' +
-          'for(var s=0;s<ss.length&&!f;s++){try{if(ss[s].tty()==="' + sessionTty + '")' +
-          '{ts[t].select();ss[s].select();var wn=ws[w].name();' +
-          'var se=Application("System Events");var sw=se.processes["iTerm2"].windows();' +
-          'for(var i=0;i<sw.length;i++){try{if(sw[i].name()===wn){sw[i].actions["AXRaise"].perform();break}}catch(e2){}}' +
-          'ws[w].index=1;iTerm.activate();f=1}}catch(e){}}}}'
-        ]));
-        task.launch;
-        task.waitUntilExit;
-      } else if (bundleId || idePid > 0) {
+      // Focus the terminal/IDE
+      if (bundleId || idePid > 0) {
         var activated = false;
         if (bundleId) {
           var ws=$.NSWorkspace.sharedWorkspace, apps=ws.runningApplications;
@@ -287,6 +272,21 @@ function run(argv) {
         if (!activated && idePid > 0) {
           var ideApp=$.NSRunningApplication.runningApplicationWithProcessIdentifier(idePid);
           if (ideApp && !ideApp.isNil()) ideApp.activateWithOptions($.NSApplicationActivateIgnoringOtherApps);
+        }
+        // iTerm2: try tab/window-level focus after app activation (fire-and-forget)
+        if (sessionTty && bundleId === 'com.googlecode.iterm2') {
+          try {
+            var task = $.NSTask.alloc.init;
+            task.setLaunchPath($('/usr/bin/osascript'));
+            task.setArguments($(['-l', 'JavaScript', '-e',
+              'var iTerm=Application("iTerm2");var ws=iTerm.windows();var f=0;' +
+              'for(var w=0;w<ws.length&&!f;w++){var ts=ws[w].tabs();' +
+              'for(var t=0;t<ts.length&&!f;t++){var ss=ts[t].sessions();' +
+              'for(var s=0;s<ss.length&&!f;s++){try{if(ss[s].tty()==="' + sessionTty + '")' +
+              '{ts[t].select();ss[s].select();ws[w].index=1;f=1}}catch(e){}}}}'
+            ]));
+            task.launch;
+          } catch(e) {}
         }
       }
       $.NSApp.terminate(null);
