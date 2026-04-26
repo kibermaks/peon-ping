@@ -99,10 +99,18 @@ Describe "session_override + path_rules + ide_rules interaction" {
     }
 
     It "exclude_dirs silences before pack selection" {
-        $script:PackSelectionBlock | Should -Match '\$silencedPath = \$null'
-        $script:PackSelectionBlock | Should -Match 'if \(\$cwd -and \$excludeDirs\)'
-        $script:PackSelectionBlock | Should -Match 'if \(\$silencedPath\) \{'
-        $script:PackSelectionBlock | Should -Match 'exit 0'
+        # Silencing is a hook-wide short-circuit that runs BEFORE the pack selection block,
+        # not inside it. Assert the early-exit exists, references exclude_dirs, and lives
+        # earlier in the hook than the "# --- Pick a sound ---" marker.
+        $script:EmbeddedHook | Should -Match "# --- exclude_dirs: silence"
+        $script:EmbeddedHook | Should -Match '\$_excludedDirPattern'
+        $script:EmbeddedHook | Should -Match "reason = 'excluded_dir'"
+
+        $silenceIdx = $script:EmbeddedHook.IndexOf('# --- exclude_dirs: silence')
+        $packIdx = $script:EmbeddedHook.IndexOf('# --- Pick a sound ---')
+        $silenceIdx | Should -BeGreaterThan -1
+        $packIdx | Should -BeGreaterThan -1
+        $silenceIdx | Should -BeLessThan $packIdx
     }
 }
 
